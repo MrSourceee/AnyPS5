@@ -139,3 +139,28 @@ void Ngs2ApplyFilter(Ngs2Voice& voice, Ngs2Filter& filter, std::uint32_t grain) 
         }
     }
 }
+
+struct LfeBiquad {
+    float gain;
+    float a1;
+    float a2;
+};
+
+static constexpr LfeBiquad LFE_80_HZ_AT_48000[] = {{6.09809425e-10f, 1.9866643f, -0.986732125f}, {1.0f, 1.99433744f, -0.994482934f}};
+static constexpr LfeBiquad LFE_120_HZ_AT_48000[] = {{3.07265147e-9f, 1.98001206f, -0.98016417f}, {1.0f, 1.9914093f, -0.991736054f}};
+
+bool Ngs2ApplyMasteringLfe(Ngs2MasteringLfe& lfe, float* samples, std::uint32_t grain) {
+    const auto* sections = lfe.highCutoff ? LFE_120_HZ_AT_48000 : LFE_80_HZ_AT_48000;
+    const auto count = grain - grain % 4;
+    for (std::size_t section = 0; section < lfe.history.size(); ++section) {
+        const auto& [gain, a1, a2] = sections[section];
+        auto& h = lfe.history[section];
+        for (std::uint32_t i = 0; i < count; ++i) {
+            const float x = samples[i];
+            const float y = gain * x + (2.0f * gain) * h.x1 + gain * h.x2 + a1 * h.y1 + a2 * h.y2;
+            h = {x, h.x1, y, h.y1};
+            samples[i] = y;
+        }
+    }
+    return std::any_of(samples, samples + count, [](float value) { return value != 0.0f; });
+}

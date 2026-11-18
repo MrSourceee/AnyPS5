@@ -89,6 +89,13 @@ struct Ngs2FilterHistory {
     float y2 = 0.0f;
 };
 
+struct Ngs2MasteringLfe {
+    bool enabled = false;
+    bool highCutoff = false;
+    bool lifecycleUnknown = false;
+    std::array<Ngs2FilterHistory, 2> history{};
+};
+
 struct Ngs2Filter {
     bool enabled = false;
     bool pending = false;
@@ -231,6 +238,7 @@ struct Ngs2Voice {
     std::uint32_t outputId = 0;
     float fbwLevel = 1.0f;
     float lfeLevel = 1.0f;
+    Ngs2MasteringLfe masteringLfe;
     std::vector<Ngs2UserFx2> userFx;
     std::vector<Ngs2VoiceCustomUserFx> customUserFx;
     std::vector<Ngs2VoiceCustomGain> customGain;
@@ -378,6 +386,7 @@ void* Ngs2Place(const Ngs2ContextBufferInfo* bufferInfo, std::size_t size, std::
 int Ngs2DestroyRack(Ngs2Rack& rack, Ngs2ContextBufferInfo* outBufferInfo);
 int Ngs2ReleaseBuffer(const Ngs2BufferAllocator& allocator, Ngs2ContextBufferInfo bufferInfo, Ngs2ContextBufferInfo* outBufferInfo);
 void Ngs2SetupAtrac9(Ngs2Voice& voice, const Ngs2WaveformFormat& format);
+bool Ngs2ApplyMasteringLfe(Ngs2MasteringLfe& lfe, float* samples, std::uint32_t grain);
 void Ngs2SetFilter(Ngs2Voice& voice, const Ngs2SamplerVoiceFilterParam& param);
 void Ngs2ConfigureFilter(Ngs2Filter& filter, const Ngs2SamplerVoiceFilterParam& param, float rate);
 void Ngs2ApplyFilter(Ngs2Voice& voice, Ngs2Filter& filter, std::uint32_t grain);

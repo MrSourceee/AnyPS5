@@ -741,7 +741,18 @@ void Ngs2RenderSystem(Ngs2System& system, const Ngs2RenderBufferInfo* bufferInfo
         std::vector<std::vector<float>> mixes(numBufferInfo);
         for (auto* voice : voices) {
             RenderVoice(*voice, voices, grain, system.option.sample_rate);
-            if ((voice->rack->rackId != SCE_NGS2_RACK_ID_MASTERING && voice->rack->rackId != SCE_NGS2_RACK_ID_CUSTOM_MASTERING) || !voice->hasSamples || voice->KilledForRender()) continue;
+            if (!voice->IsMastering() || voice->KilledForRender()) continue;
+            if (!PS4_LIBRARY && voice->masteringLfe.enabled && (voice->state == Ngs2PlayState::Playing || voice->hasSamples)) {
+                if (voice->state != Ngs2PlayState::Playing || voice->masteringLfe.lifecycleUnknown) throw std::runtime_error("NGS2: mastering LFE across pause or restart without a new setup is not implemented");
+                if (voice->outputId >= numBufferInfo) throw std::invalid_argument("NGS2: mastering LFE has no render buffer");
+                if (system.option.sample_rate != 48000) throw std::runtime_error("NGS2: mastering LFE at rates other than 48000 Hz is not implemented");
+                if ((voice->channels != 4 && voice->channels != 6 && voice->channels != 8) || bufferInfo[voice->outputId].num_channels != voice->channels) {
+                    throw std::runtime_error("NGS2: mastering LFE needs a matching 4-, 6- or 8-channel render buffer");
+                }
+                float* samples = voice->samples.data() + 3 * grain;
+                if (Ngs2ApplyMasteringLfe(voice->masteringLfe, samples, grain)) voice->hasSamples = true;
+            }
+            if (!voice->hasSamples) continue;
             auto& mix = OutputMix(mixes, bufferInfo, numBufferInfo, *voice, grain);
             const std::uint32_t outputChannels = bufferInfo[voice->outputId].num_channels;
             if (!PS4_LIBRARY && voice->rack->rackId == SCE_NGS2_RACK_ID_MASTERING) {

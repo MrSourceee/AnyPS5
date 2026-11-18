@@ -1745,7 +1745,7 @@ static void TestMasteringEffectParams() {
         Require(ControlMasteringEffect(master, SCE_NGS2_MASTERING_VOICE_PARAM_PEAK_METER, 16, mode, 0) == SCE_NGS2_ERROR_INVALID_PEAK_METER_MODE);
     }
     for (const std::uint32_t enable : {1u, 2u, 0xffffffffu}) {
-        Require(EffectNotImplemented(master, SCE_NGS2_MASTERING_VOICE_PARAM_LFE, enable, 40));
+        Require(ControlMasteringEffect(master, SCE_NGS2_MASTERING_VOICE_PARAM_LFE, 24, enable, 40) == SCE_NGS2_OK);
         Require(EffectNotImplemented(master, SCE_NGS2_MASTERING_VOICE_PARAM_LIMITER, enable, 0x3f800000));
     }
     Require(ControlMasteringEffect(master, SCE_NGS2_MASTERING_VOICE_PARAM_LIMITER, 16, 1, 0x7fc00000) == SCE_NGS2_OK);

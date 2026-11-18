@@ -132,6 +132,10 @@ std::uint32_t Ngs2Voice::UserFxFlags(std::uint32_t flags) const {
 }
 
 void Ngs2Voice::SetEvent(std::uint32_t eventId) {
+    if (masteringLfe.enabled && state != Ngs2PlayState::Empty &&
+        (eventId == SCE_NGS2_VOICE_EVENT_PAUSE || eventId == SCE_NGS2_VOICE_EVENT_STOP || eventId == SCE_NGS2_VOICE_EVENT_STOP_IMM || eventId == SCE_NGS2_VOICE_EVENT_KILL)) {
+        masteringLfe.lifecycleUnknown = true;
+    }
     if (state != Ngs2PlayState::Empty &&
         (eventId == SCE_NGS2_VOICE_EVENT_STOP || eventId == SCE_NGS2_VOICE_EVENT_STOP_IMM || eventId == SCE_NGS2_VOICE_EVENT_KILL)) {
         for (auto& gain : customGain) if (gain.configured) gain.lifecycleUnknown = true;
@@ -246,6 +250,7 @@ void Ngs2Voice::ResetSetup() {
     compressor.gain.fill(1.0f);
     fbwLevel = 1.0f;
     lfeLevel = 1.0f;
+    masteringLfe = {};
     channels = 0;
     inputChannels = 0;
     sampleRate = 0;
@@ -618,7 +623,7 @@ static void CheckMasteringEffect(const Ngs2VoiceParamHeader& param) {
         if (effect.enable_flag > 2) throw Ngs2ReturnCode{SCE_NGS2_ERROR_INVALID_PEAK_METER_MODE};
         return;
     }
-    if (effect.enable_flag == 0) return;
+    if (param.id == SCE_NGS2_MASTERING_VOICE_PARAM_LFE || effect.enable_flag == 0) return;
     if (param.id == SCE_NGS2_MASTERING_VOICE_PARAM_LIMITER && std::isnan(std::bit_cast<float>(effect.value))) return;
     throw std::runtime_error("NGS2: enabled voice param " + Ngs2Hex(param.id) + " is not implemented");
 }
@@ -1185,6 +1190,11 @@ static void ApplyParam(Ngs2Voice& voice, const Ngs2VoiceParamHeader& param) {
             }
             if (IsMasteringEffect(voice, param.id)) {
                 CheckMasteringEffect(param);
+                if (param.id == SCE_NGS2_MASTERING_VOICE_PARAM_LFE) {
+                    const auto& effect = ParamAs<Ngs2MasteringVoiceEffectParam>(param);
+                    voice.masteringLfe.enabled = effect.enable_flag != 0;
+                    voice.masteringLfe.highCutoff = effect.value > 80;
+                }
                 return;
             }
             break;
